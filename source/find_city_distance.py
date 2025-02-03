@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import os
 import json
+import math
 
 class FindDistance:
     def __init__(self, root, json_output):
@@ -72,8 +73,8 @@ class FindDistance:
             with open(self.city_file_path, 'r') as city_file:
                 data = json.load(city_file)
                 for obj in data:
-                    origin_code = obj['origin_airport']
-                    destination_code = obj['destination_airport']
+                    origin_code = obj['origin_city']
+                    destination_code = obj['destination_city']
 
                     # Lookup origin and destination city info from city_code (fallback to airport_code)
                     origin_info = city_code_lookup.get(origin_code) or airport_code_lookup.get(origin_code)
@@ -87,6 +88,14 @@ class FindDistance:
                         obj['destination_latitude'] = destination_info['latitude']
                         obj['destination_longitude'] = destination_info['longitude']
 
+                    
+                    self.origin_latitude = obj['origin_latitude']
+                    self.origin_longitude = obj['origin_longitude']
+                    self.destination_latitude = obj['destination_latitude']
+                    self.destination_longitude = obj['destination_longitude']
+
+                    obj['distance_kms'] = self.haversine_formula()
+
                     # Write the updated entry to the output file
                     if not first:
                         output_file.write(',\n')
@@ -94,6 +103,35 @@ class FindDistance:
                     first = False
 
             output_file.write('\n]')  # End the JSON array
+            messagebox.showinfo("Success", f"JSON file has been created: {self.json_output}")
+            self.root.quit()
+
+    @staticmethod
+    def deg_to_rad(deg):
+        return deg * (math.pi / 180)
+
+    def haversine_formula(self):
+        # Radius of Earth in km
+        earth_rad = 6371.0
+
+        # Converting longitude and latitude to radians
+        origin_lat = self.deg_to_rad(float(self.origin_latitude))
+        origin_long = self.deg_to_rad(float(self.origin_longitude))
+        destination_lat = self.deg_to_rad(float(self.destination_latitude))
+        destination_long = self.deg_to_rad(float(self.destination_longitude))
+
+        # Get the difference between coordinates
+        latitude_diff = destination_lat - origin_lat
+        longitude_diff = destination_long - origin_long
+
+        # Computation
+        a = math.sin(latitude_diff / 2) ** 2 + math.cos(origin_lat) * math.cos(destination_lat) * math.sin(longitude_diff / 2) ** 2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        # Distance in km
+        self.distance = earth_rad * c
+        return self.distance
+
 
 
 
