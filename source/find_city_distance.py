@@ -2,13 +2,15 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import os
+import csv
 import json
 import math
 
 class FindDistance:
-    def __init__(self, root, json_output):
+    def __init__(self, root, json_output, csv_output):
         self.root = root
         self.json_output = json_output
+        self.csv_output = csv_output
         self.root.title("Find City Distance")
         
         self.frame = tk.Frame(root)
@@ -66,7 +68,7 @@ class FindDistance:
         airport_code_lookup = {entry['code']: entry for entry in master_data}
 
         with open(self.json_output, 'w') as output_file:
-            output_file.write('[')  # Start the JSON array
+            output_file.write('[\n')  # Start the JSON array
             first = True  # Flag to ensure proper comma placement between objects
 
             # Open user data
@@ -103,7 +105,9 @@ class FindDistance:
                     first = False
 
             output_file.write('\n]')  # End the JSON array
-            messagebox.showinfo("Success", f"JSON file has been created: {self.json_output}")
+
+            self.export_to_csv()
+            messagebox.showinfo("Success", f"JSON file has been created: {self.csv_output}")
             self.root.quit()
 
     @staticmethod
@@ -130,13 +134,21 @@ class FindDistance:
 
         # Distance in km
         self.distance = earth_rad * c
-        return self.distance
+        return str(self.distance)
+    
+    def export_to_csv(self):
+        print("export_to_csv")
+        with open(self.json_output, 'r') as json_file:
+            data = json.load(json_file)
 
-
-
+        with open(self.csv_output, 'w', newline='') as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=data[0].keys())
+            writer.writeheader()  # Write the header (fieldnames)
+            writer.writerows(data)  # Write the rows
 
 if __name__ == "__main__":
     json_output = "calculated_distance.json"
+    csv_output = "output.csv"
     root = tk.Tk()
-    app = FindDistance(root, json_output)
+    app = FindDistance(root, json_output, csv_output)
     root.mainloop()
