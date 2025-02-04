@@ -1,7 +1,7 @@
 # Calculating city distance using longitude and latitude
 import tkinter as tk
 from tkinter import filedialog, messagebox
-import os
+from datetime import datetime
 import csv
 import json
 import math
@@ -60,55 +60,46 @@ class FindDistance:
             self.entry_city_csv.insert(0, self.city_file_path)
 
     def calculate_city_distance(self):
-        print("calculate_city_distance")
+        to_json_data = []
         with open(self.master_file_path, 'r') as master_file:
             master_data = json.load(master_file)
 
         city_code_lookup = {entry['city_code']: entry for entry in master_data}
         airport_code_lookup = {entry['code']: entry for entry in master_data}
 
+        # Open user data
+        with open(self.city_file_path, 'r') as city_file:
+            data = json.load(city_file)
+            for obj in data:
+                origin_code = obj['origin_city']
+                destination_code = obj['destination_city']
+
+                # Lookup origin and destination city info from city_code (fallback to airport_code)
+                origin_info = city_code_lookup.get(origin_code) or airport_code_lookup.get(origin_code)
+                destination_info = city_code_lookup.get(destination_code) or airport_code_lookup.get(destination_code)
+
+                # Add latitude and longitude if found
+                if origin_info:
+                    obj['origin_latitude'] = origin_info['latitude']
+                    obj['origin_longitude'] = origin_info['longitude']
+                if destination_info:
+                    obj['destination_latitude'] = destination_info['latitude']
+                    obj['destination_longitude'] = destination_info['longitude']
+                
+                self.origin_latitude = obj['origin_latitude']
+                self.origin_longitude = obj['origin_longitude']
+                self.destination_latitude = obj['destination_latitude']
+                self.destination_longitude = obj['destination_longitude']
+
+                obj['distance_kms'] = self.haversine_formula()
+                to_json_data.append(obj)
+
         with open(self.json_output, 'w') as output_file:
-            output_file.write('[\n')  # Start the JSON array
-            first = True  # Flag to ensure proper comma placement between objects
+            output_file.write(json.dumps(to_json_data, indent=4))
 
-            # Open user data
-            with open(self.city_file_path, 'r') as city_file:
-                data = json.load(city_file)
-                for obj in data:
-                    origin_code = obj['origin_city']
-                    destination_code = obj['destination_city']
-
-                    # Lookup origin and destination city info from city_code (fallback to airport_code)
-                    origin_info = city_code_lookup.get(origin_code) or airport_code_lookup.get(origin_code)
-                    destination_info = city_code_lookup.get(destination_code) or airport_code_lookup.get(destination_code)
-
-                    # Add latitude and longitude if found
-                    if origin_info:
-                        obj['origin_latitude'] = origin_info['latitude']
-                        obj['origin_longitude'] = origin_info['longitude']
-                    if destination_info:
-                        obj['destination_latitude'] = destination_info['latitude']
-                        obj['destination_longitude'] = destination_info['longitude']
-
-                    
-                    self.origin_latitude = obj['origin_latitude']
-                    self.origin_longitude = obj['origin_longitude']
-                    self.destination_latitude = obj['destination_latitude']
-                    self.destination_longitude = obj['destination_longitude']
-
-                    obj['distance_kms'] = self.haversine_formula()
-
-                    # Write the updated entry to the output file
-                    if not first:
-                        output_file.write(',\n')
-                    output_file.write(json.dumps(obj, indent=4))
-                    first = False
-
-            output_file.write('\n]')  # End the JSON array
-
-            self.export_to_csv()
-            messagebox.showinfo("Success", f"JSON file has been created: {self.csv_output}")
-            self.root.quit()
+        self.export_to_csv()
+        messagebox.showinfo("Success", f"JSON file has been created: {self.csv_output}")
+        self.root.quit()
 
     @staticmethod
     def deg_to_rad(deg):
@@ -147,8 +138,13 @@ class FindDistance:
             writer.writerows(data)  # Write the rows
 
 if __name__ == "__main__":
-    json_output = "calculated_distance.json"
-    csv_output = "output.csv"
+    json_output = "output/calculated_distance_YYYYMMDD.json"
+    csv_output = "output/output_YYYYMMDD.csv"
+    current_date = datetime.now()
+    formatted_date = current_date.strftime('%Y%m%d')
+
+    json_output = json_output.replace('YYYYMMDD', formatted_date)
+    csv_output = csv_output.replace('YYYYMMDD', formatted_date)
     root = tk.Tk()
     app = FindDistance(root, json_output, csv_output)
     root.mainloop()
